@@ -1,3 +1,212 @@
+# 📱 Food App — Funnel & A/B Test Analysis
+
+**Conversion-Funnel Analysis and A/B Test in a Delivery App**
+
+***
+
+## 📋 About the Project
+
+This project was developed as part of the TripleTen Data Analytics bootcamp. The goal is to analyse user behaviour logs in a food-delivery app, building a **conversion funnel** to identify bottlenecks in the purchase journey, and using an **A/B test** to assess whether changing the app's fonts affected user conversion.
+
+The analysis starts from 244,126 events recorded between July and August 2019, split across three experimental groups — two control groups (246 and 247) and one test group (248) — and culminates in a formal decision on whether to implement or discard the font change.
+
+***
+
+## 🎯 Objectives
+
+- Clean the data by removing duplicates and events from days with incomplete coverage
+- Map the app's event sequence and build the conversion funnel of the purchase journey
+- Identify the largest funnel bottleneck — where most users abandon the journey
+- Validate the experiment with an **A/A test** between the control groups
+- Apply the **A/B test** comparing the group with the changed font (248) against the controls
+- Apply the **Bonferroni correction** to control the risk of false positives across multiple comparisons
+- Issue a business recommendation based on the statistical results
+
+***
+
+## 🗂️ Project Structure
+
+### **Stage 1: Reading and Initial Exploration**
+- Loading the `logs_exp_us.csv` dataset
+- Checking types, nulls, volume, and distribution by experimental group
+
+### **Stage 2: Data Preparation**
+- Renaming columns to snake_case
+- Identifying and removing duplicates (413 rows, 0.17% of the total)
+- Converting the Unix timestamp to datetime and extracting the date column
+- Completeness analysis by day: identifying 7 days with incomplete data (25/07–31/07)
+- Temporal cut keeping only events from 01/08 onwards — losing 0.33% of events and 0.12% of users
+
+### **Stage 3: Event Funnel**
+- Counting occurrences and unique users per event type
+- Inferring the funnel order from the drop in volume between stages
+- Excluding the `Tutorial` event (not part of the purchase journey)
+- Computing step-over-step and cumulative conversion rates (top → bottom)
+- Identifying the largest bottleneck in the journey
+
+### **Stage 4: Validation with an A/A Test**
+- Comparing control groups 246 vs 247 across all events
+- Using the **two-proportion z-test** at each funnel step and across all events
+- Confirming the groups are statistically equivalent before proceeding
+
+### **Stage 5: A/B Test — Effect of the Font Change**
+- Comparing group 248 (changed font) vs 246 individually
+- Comparing group 248 vs 247 individually
+- Comparing group 248 vs the combined control (246 + 247)
+
+### **Stage 6: Bonferroni Correction**
+- Inventory of the 24 hypothesis tests performed in the project
+- Computing the false-positive risk without correction (>70%)
+- Recomputing with a corrected α (0.05 / 24 ≈ 0.0021) and checking the results
+
+***
+
+## 📊 Dataset
+
+### **File**
+
+| File | Records | Unique users | Groups |
+|---------|:---------:|:---------------:|--------|
+| `logs_exp_us.csv` | 244,126 | 7,551 | 246 (control), 247 (control), 248 (test) |
+
+### **Column Descriptions**
+
+| Original column | Renamed column | Description |
+|----------------|-----------------|-----------|
+| `EventName` | `event_name` | Name of the event logged in the app |
+| `DeviceIDHash` | `device_id` | Unique user identifier (device hash) |
+| `EventTimestamp` | `timestamp` | Unix timestamp of the event (int64) |
+| `ExpId` | `exp_id` | Experimental group: 246 and 247 = control, 248 = test |
+
+### **Available Events**
+
+| Event | Description | In funnel? |
+|--------|-----------|:---------:|
+| `MainScreenAppear` | App main screen | ✅ Step 1 |
+| `OffersScreenAppear` | Offers screen | ✅ Step 2 |
+| `CartScreenAppear` | Cart screen | ✅ Step 3 |
+| `PaymentScreenSuccessful` | Payment completed | ✅ Step 4 |
+| `Tutorial` | Tutorial for new users | ❌ Excluded |
+
+***
+
+## 📈 Key Results
+
+### **Conversion Funnel**
+
+| Step | Unique users | Conv. from previous step | Cumulative conv. |
+|-------|:--------------:|:-----------------------:|:---------------:|
+| MainScreenAppear | 7,429 | — | 100.00% |
+| OffersScreenAppear | 4,606 | 62.00% | 62.00% |
+| CartScreenAppear | 3,742 | 81.24% | 50.37% |
+| PaymentScreenSuccessful | 3,542 | 94.66% | **47.68%** |
+
+- **Largest bottleneck:** MainScreen → OffersScreen — **38% of users do not advance** (2,823 users lost)
+- **Completion rate:** 47.68% of users who open the app reach payment
+
+### **A/A Test — Experiment Validation**
+
+No statistically significant difference was found between groups 246 and 247 on any event (p ≥ 0.05 in every case). The control groups are equivalent and the experiment is correctly calibrated.
+
+### **A/B Test — Effect of the Font Change (group 248)**
+
+| Comparison | Events tested | Sig. (α=0.05) | Sig. (Bonferroni α≈0.002) |
+|-----------|:----------------:|:-------------:|:-------------------------:|
+| 248 vs 246 | 5 | 0 | 0 |
+| 248 vs 247 | 5 | 0 | 0 |
+| 248 vs combined control | 5 | 0 | 0 |
+
+**Conclusion: the font change produced no measurable effect on user conversion.** No significant difference was found in any of the 15 comparisons — neither under the standard criterion (α = 0.05) nor under the Bonferroni correction (α ≈ 0.0021).
+
+The typographic change is **conversion-neutral**: it neither harms nor improves the purchase journey. The decision to implement it should be based on design criteria (accessibility, visual identity), not on funnel metrics.
+
+***
+
+## 🛠️ Technologies Used
+
+- **Pandas** — Data manipulation, cleaning, and analysis
+- **Plotly Express** — Interactive visualisations (funnel, histograms, bars)
+- **SciPy** — Base statistics library
+- **Statsmodels** — Two-proportion z-test (`proportions_ztest`)
+- **Jupyter Notebook** — Interactive development and documentation
+
+***
+
+## 🚀 How to Run
+
+### **Prerequisites**
+
+```
+python >= 3.8
+jupyter notebook
+pandas
+plotly
+scipy
+statsmodels
+```
+
+### **Installation**
+
+```bash
+# Clone the repository
+git clone https://github.com/raimirsilva/food-app-ab-test.git
+
+# Go to the directory
+cd food-app-ab-test
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start Jupyter Notebook
+jupyter notebook
+```
+
+### **Execution**
+
+Make sure the file `logs_exp_us.csv` is in `../data/` relative to the notebook, or adjust the path in the reading cell. Then open `food_app.ipynb` and run the cells in sequence.
+
+***
+
+## 🎓 Key Takeaways
+
+This project demonstrates competencies in:
+
+- **Methodical data cleaning** — removing duplicates with per-group impact analysis before deleting; a temporal cut based on the daily median rather than hardcoded dates
+- **Building a conversion funnel** — inferring step order from volume, computing step-over-step and cumulative rates
+- **The A/A test as a mandatory validation step** — ensuring the control groups are equivalent before interpreting the A/B test
+- **Proportion tests (z-test)** — applied systematically across multiple events and groups via a reusable function
+- **Bonferroni correction** — Type I error control in a multiple-comparisons context (24 simultaneous tests)
+- **Data-driven decision-making** — separating the business recommendation from the absence of statistical evidence, avoiding both implementing and discarding for the wrong reasons
+
+***
+
+## 👤 Author
+
+**Raimir Silva**
+
+- GitHub: [@raimirsilva](https://github.com/raimirsilva)
+- LinkedIn: [Raimir Silva](https://linkedin.com/in/raimir-silva)
+- Email: raimirsilva@icloud.com
+
+***
+
+## 📄 Licence
+
+This project was developed as part of the **TripleTen Data Analytics** bootcamp for educational and portfolio purposes.
+
+***
+
+**⭐ If this project was useful to you, consider giving the repository a star!**
+
+<br>
+
+***
+***
+
+<br>
+
+***
+
 # 📱 Food App — Análise de Funil e Teste A/B
 
 **Análise de Funil de Conversão e Teste A/B em App de Delivery**
